@@ -34,12 +34,68 @@ impl From<u32> for E820Type {
     }
 }
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct MemoryDescriptor {
+    pub r#type: u32,
+    pub physical_start: u64,
+    pub virtual_start: u64,
+    pub number_of_pages: u64,
+    pub attribute: u64,
+}
+
+pub type EfiMemoryType = u32;
+
+impl Into<EfiMemoryType> for E820Type {
+    fn into(self) -> EfiMemoryType {
+        match self {
+            E820Type::Memory => 7,
+            E820Type::Reserved => 0,
+            E820Type::Acpi => 9,
+            E820Type::Nvs => 10,
+            E820Type::Unusable => 8,
+            E820Type::Disabled => 8,
+            E820Type::Pmem => 14,
+            E820Type::Unaccepted => 8,
+            E820Type::Unknown => 8,
+        }
+    }
+}
+
+// impl Into<MemoryType> for E820Type {
+//     fn into(self) -> MemoryType {
+//         match self {
+//             E820Type::Memory => MemoryType::ConventionalMemory,
+//             E820Type::Reserved => MemoryType::ReservedMemoryType,
+//             E820Type::Acpi => MemoryType::AcpiReclaimMemory,
+//             E820Type::Nvs => MemoryType::AcpiMemoryNvs,
+//             E820Type::Unusable => MemoryType::UnusableMemory,
+//             E820Type::Disabled => MemoryType::UnusableMemory,
+//             E820Type::Pmem => MemoryType::PersistentMemory,
+//             E820Type::Unaccepted => MemoryType::UnusableMemory,
+//             E820Type::Unknown => MemoryType::UnusableMemory,
+//         }
+//     }
+// }
+
 #[derive(Clone, Copy, Debug, Default, FromBytes, AsBytes, PartialEq)]
 #[repr(C, packed)]
 pub struct E820Entry {
     pub addr: u64,
     pub size: u64,
     pub r#type: u32,
+}
+
+impl Into<MemoryDescriptor> for E820Entry {
+    fn into(self) -> MemoryDescriptor {
+        MemoryDescriptor {
+            r#type: E820Type::from(self.r#type).into(),
+            physical_start: self.addr,
+            virtual_start: self.addr,
+            number_of_pages: self.size / 0x1000,
+            attribute: 0,
+        }
+    }
 }
 
 impl E820Entry {

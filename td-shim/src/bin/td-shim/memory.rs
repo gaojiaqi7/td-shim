@@ -32,7 +32,7 @@ const SIZE_2M: u64 = 0x200000;
 
 pub struct Memory<'a> {
     pub layout: RuntimeMemoryLayout,
-    pt: OffsetPageTable<'a>,
+    pub pt: OffsetPageTable<'a>,
     pub regions: Vec<ResourceDescription>,
 }
 

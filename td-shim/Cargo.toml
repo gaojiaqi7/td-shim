@@ -37,6 +37,8 @@ td-paging = { path = "../td-paging", optional = true }
 x86 = { version ="0.47.0", optional = true }
 # Lock down to 0.44, otherwise it depends on inline asm
 x86_64 = { version = "0.14.9", optional = true }
+xmas-elf = { version = "0.8", optional = true }
+uefi = { version = "0.16", optional = true }
 
 # secure boot
 der = {version = "0.4.5", features = ["derive", "alloc"], optional = true}
@@ -61,4 +63,6 @@ main = [
     "td-paging",
     "x86",
     "x86_64",
+    "xmas-elf",
+    "uefi"
 ]
