@@ -9,13 +9,8 @@ use std::{fs, io};
 use log::trace;
 use r_efi::base::Guid;
 use scroll::Pwrite;
-use td_layout::build_time::{
-    TD_SHIM_FIRMWARE_BASE, TD_SHIM_FIRMWARE_SIZE, TD_SHIM_IPL_OFFSET, TD_SHIM_IPL_SIZE,
-    TD_SHIM_MAILBOX_OFFSET, TD_SHIM_METADATA_OFFSET, TD_SHIM_PAYLOAD_BASE, TD_SHIM_PAYLOAD_OFFSET,
-    TD_SHIM_PAYLOAD_SIZE, TD_SHIM_RESET_VECTOR_SIZE, TD_SHIM_SEC_CORE_INFO_OFFSET,
-};
 use td_layout::mailbox::TdxMpWakeupMailbox;
-use td_loader::{elf, pe};
+use td_layout::{image::*, *};
 use td_shim::fv::{
     FvFfsFileHeader, FvFfsSectionHeader, FvHeader, IplFvFfsHeader, IplFvFfsSectionHeader,
     IplFvHeader,
@@ -23,18 +18,17 @@ use td_shim::fv::{
 use td_shim::metadata::{TdxMetadataGuid, TdxMetadataPtr};
 use td_shim::reset_vector::{ResetVectorHeader, ResetVectorParams};
 use td_shim::write_u24;
-use td_uefi_pi::pi::fv::{
-    FfsFileHeader, FVH_REVISION, FVH_SIGNATURE, FV_FILETYPE_DXE_CORE, FV_FILETYPE_SECURITY_CORE,
-    SECTION_PE32,
-};
+use td_uefi_pi::pi::fv::{FfsFileHeader, FV_FILETYPE_SECURITY_CORE, SECTION_PE32};
 
 use crate::metadata::{default_metadata_sections, MetadataSections, TdxMetadata};
 use crate::{InputData, OutputFile};
 
-pub const MAX_IPL_CONTENT_SIZE: usize =
-    TD_SHIM_IPL_SIZE as usize - size_of::<IplFvHeaderByte>() - size_of::<ResetVectorHeader>();
-pub const MAX_PAYLOAD_CONTENT_SIZE: usize =
-    TD_SHIM_PAYLOAD_SIZE as usize - size_of::<FvHeaderByte>();
+pub const MAX_BOOTLOADER_SIZE: usize = TD_SHIM_BOOTLOADER_SIZE as usize
+    - size_of::<IplFvHeaderByte>()
+    - size_of::<ResetVectorHeader>();
+#[cfg(not(feature = "linux-payload"))]
+pub const MAX_PAYLOAD_BINARY_SIZE: usize =
+    TD_SHIM_BUILTIN_PAYLOAD_SIZE as usize - size_of::<FvHeaderByte>();
 pub const MAX_METADATA_CONFIG_SIZE: usize = 1024 * 1024;
 
 pub const OVMF_TABLE_FOOTER_GUID: Guid = Guid::from_fields(
@@ -74,17 +68,20 @@ impl Default for FvHeaderByte {
 
 impl FvHeaderByte {
     pub fn build_tdx_payload_fv_header() -> Self {
+        use td_uefi_pi::pi::fv::{FVH_REVISION, FVH_SIGNATURE, FV_FILETYPE_DXE_CORE};
+
         let mut hdr = Self::default();
         let fv_header_size = (size_of::<FvHeader>()) as usize;
 
         let mut tdx_payload_fv_header = FvHeader::default();
-        tdx_payload_fv_header.fv_header.fv_length = TD_SHIM_PAYLOAD_SIZE as u64;
+        tdx_payload_fv_header.fv_header.fv_length = TD_SHIM_BUILTIN_PAYLOAD_SIZE as u64;
         tdx_payload_fv_header.fv_header.signature = FVH_SIGNATURE;
         tdx_payload_fv_header.fv_header.header_length = size_of::<FvHeader>() as u16;
         tdx_payload_fv_header.fv_header.revision = FVH_REVISION;
         tdx_payload_fv_header.fv_header.update_checksum();
 
-        tdx_payload_fv_header.fv_block_map[0].num_blocks = (TD_SHIM_PAYLOAD_SIZE as u32) / 0x1000;
+        tdx_payload_fv_header.fv_block_map[0].num_blocks =
+            (TD_SHIM_BUILTIN_PAYLOAD_SIZE as u32) / 0x1000;
         tdx_payload_fv_header.fv_block_map[0].length = 0x1000;
         tdx_payload_fv_header.fv_ext_header.fv_name.copy_from_slice(
             Guid::from_fields(
@@ -117,7 +114,7 @@ impl FvHeaderByte {
         tdx_payload_fv_ffs_header.ffs_header.r#type = FV_FILETYPE_DXE_CORE;
         tdx_payload_fv_ffs_header.ffs_header.attributes = 0x00;
         write_u24(
-            TD_SHIM_PAYLOAD_SIZE - fv_header_size as u32,
+            TD_SHIM_BUILTIN_PAYLOAD_SIZE - fv_header_size as u32,
             &mut tdx_payload_fv_ffs_header.ffs_header.size,
         );
         tdx_payload_fv_ffs_header.ffs_header.update_checksum();
@@ -130,7 +127,9 @@ impl FvHeaderByte {
 
         let mut tdx_payload_fv_ffs_section_header = FvFfsSectionHeader::default();
         write_u24(
-            TD_SHIM_PAYLOAD_SIZE - fv_header_size as u32 - size_of::<FvFfsFileHeader>() as u32,
+            TD_SHIM_BUILTIN_PAYLOAD_SIZE
+                - fv_header_size as u32
+                - size_of::<FvFfsFileHeader>() as u32,
             &mut tdx_payload_fv_ffs_section_header.section_header.size,
         );
         tdx_payload_fv_ffs_section_header.section_header.r#type = SECTION_PE32;
@@ -154,10 +153,10 @@ impl FvHeaderByte {
 
         let mut tdx_ipl_fv_header = IplFvHeader::default();
         tdx_ipl_fv_header.fv_header.fv_length =
-            (TD_SHIM_IPL_SIZE + TD_SHIM_RESET_VECTOR_SIZE) as u64;
+            (TD_SHIM_BOOTLOADER_SIZE + TD_SHIM_RESET_VECTOR_SIZE) as u64;
         tdx_ipl_fv_header.fv_header.checksum = 0x3d21;
         tdx_ipl_fv_header.fv_block_map[0].num_blocks =
-            (TD_SHIM_IPL_SIZE + TD_SHIM_RESET_VECTOR_SIZE) / 0x1000;
+            (TD_SHIM_BOOTLOADER_SIZE + TD_SHIM_RESET_VECTOR_SIZE) / 0x1000;
         tdx_ipl_fv_header.fv_block_map[0].length = 0x1000;
         tdx_ipl_fv_header.fv_ext_header.fv_name.copy_from_slice(
             Guid::from_fields(
@@ -191,7 +190,7 @@ impl FvHeaderByte {
         tdx_ipl_fv_ffs_header.ffs_header.r#type = FV_FILETYPE_SECURITY_CORE;
         tdx_ipl_fv_ffs_header.ffs_header.attributes = 0x00;
         write_u24(
-            TD_SHIM_IPL_SIZE - fv_header_size as u32,
+            TD_SHIM_BOOTLOADER_SIZE - fv_header_size as u32,
             &mut tdx_ipl_fv_ffs_header.ffs_header.size,
         );
         tdx_ipl_fv_ffs_header.ffs_header.update_checksum();
@@ -204,7 +203,7 @@ impl FvHeaderByte {
 
         let mut tdx_ipl_fv_ffs_section_header = IplFvFfsSectionHeader::default();
         write_u24(
-            TD_SHIM_IPL_SIZE - fv_header_size as u32 - size_of::<FfsFileHeader>() as u32,
+            TD_SHIM_BOOTLOADER_SIZE - fv_header_size as u32 - size_of::<FfsFileHeader>() as u32,
             &mut tdx_ipl_fv_ffs_section_header.section_header.size,
         );
         tdx_ipl_fv_ffs_section_header.section_header.r#type = SECTION_PE32;
@@ -304,7 +303,7 @@ impl TdShimLinker {
         &self,
         reset_name: &str,
         ipl_name: &str,
-        payload_name: Option<&str>,
+        #[cfg(not(feature = "linux-payload"))] payload_name: Option<&str>,
         metadata_name: Option<&str>,
     ) -> io::Result<()> {
         let reset_vector_bin = InputData::new(
@@ -312,7 +311,7 @@ impl TdShimLinker {
             TD_SHIM_RESET_VECTOR_SIZE as usize..=TD_SHIM_RESET_VECTOR_SIZE as usize,
             "reset_vector",
         )?;
-        let ipl_bin = InputData::new(ipl_name, 0..=MAX_IPL_CONTENT_SIZE, "IPL")?;
+        let ipl_bin = InputData::new(ipl_name, 0..=MAX_BOOTLOADER_SIZE, "IPL")?;
         let output_file_name = self
             .output_file_name
             .as_ref()
@@ -327,22 +326,22 @@ impl TdShimLinker {
             "mailbox content",
         )?;
 
+        #[cfg(not(feature = "linux-payload"))]
         if let Some(payload_name) = payload_name {
-            let payload_bin =
-                InputData::new(payload_name, 0..=MAX_PAYLOAD_CONTENT_SIZE, "payload")?;
+            let payload_bin = InputData::new(payload_name, 0..=MAX_PAYLOAD_BINARY_SIZE, "payload")?;
             let payload_header = PayloadFvHeaderByte::build_tdx_payload_fv_header();
             output_file.seek_and_write(
-                TD_SHIM_PAYLOAD_OFFSET as u64,
+                TD_SHIM_BUILTIN_PAYLOAD_OFFSET as u64,
                 &payload_header.data,
                 "payload header",
             )?;
 
             if self.payload_relocation {
-                let mut payload_reloc_buf = vec![0x0u8; MAX_PAYLOAD_CONTENT_SIZE];
-                let reloc = pe::relocate(
+                let mut payload_reloc_buf = vec![0x0u8; MAX_PAYLOAD_BINARY_SIZE];
+                let reloc = td_loader::pe::relocate(
                     &payload_bin.data,
                     &mut payload_reloc_buf,
-                    TD_SHIM_PAYLOAD_BASE as usize + payload_header.data.len(),
+                    TD_SHIM_BUILTIN_PAYLOAD_BASE as usize + payload_header.data.len(),
                 )
                 .ok_or_else(|| {
                     io::Error::new(io::ErrorKind::Other, "Can not relocate payload content")
@@ -359,11 +358,15 @@ impl TdShimLinker {
         output_file.seek_and_write(pos, &metadata.to_vec(), "metadata")?;
 
         let ipl_header = IplFvHeaderByte::build_tdx_ipl_fv_header();
-        output_file.seek_and_write(TD_SHIM_IPL_OFFSET as u64, &ipl_header.data, "IPL header")?;
+        output_file.seek_and_write(
+            TD_SHIM_BOOTLOADER_OFFSET as u64,
+            &ipl_header.data,
+            "IPL header",
+        )?;
 
-        let mut ipl_reloc_buf = vec![0x00u8; MAX_IPL_CONTENT_SIZE];
+        let mut ipl_reloc_buf = vec![0x00u8; MAX_BOOTLOADER_SIZE];
         // relocate ipl to 1M
-        let reloc = elf::relocate_elf_with_per_program_header(
+        let reloc = td_loader::elf::relocate_elf_with_per_program_header(
             &ipl_bin.data,
             &mut ipl_reloc_buf,
             0x100000 as usize,

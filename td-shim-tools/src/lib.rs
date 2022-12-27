@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::{fs, io};
 
 use log::error;
-use td_layout::build_time::TD_SHIM_FIRMWARE_SIZE;
+use td_layout::TD_SHIM_FIRMWARE_SIZE;
 
 #[cfg(feature = "enroller")]
 pub mod enroller;
@@ -29,9 +29,6 @@ pub mod loader;
 
 #[cfg(feature = "tee")]
 pub mod tee_info_hash;
-
-#[cfg(feature = "layout_builder")]
-pub mod layout_builder;
 
 /// Struct to read input data from a file.
 pub struct InputData {

@@ -72,8 +72,15 @@ fn main() -> io::Result<()> {
     // Safe to unwrap() because these are mandatory arguments.
     let reset_name = matches.value_of("reset_vector").unwrap();
     let ipl_name = matches.value_of("ipl").unwrap();
+    #[cfg(not(feature = "linux-payload"))]
     let payload_name = matches.value_of("payload");
     let metadata_name = matches.value_of("metadata");
 
-    builder.build(reset_name, ipl_name, payload_name, metadata_name)
+    builder.build(
+        reset_name,
+        ipl_name,
+        #[cfg(not(feature = "linux-payload"))]
+        payload_name,
+        metadata_name,
+    )
 }

@@ -16,11 +16,11 @@ fi
 
 final_boot_kernel() {
     echo "Build final binary with boot-kernel support"
-    cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx,boot-kernel
+    cargo xbuild -p td-shim --target x86_64-unknown-none --release --features=main,tdx
 
     cargo run -p td-shim-tools --bin td-shim-strip-info -- -n td-shim --target x86_64-unknown-none
 
-    cargo run -p td-shim-tools --features=td-shim/default,td-shim/tdx,boot-kernel --bin td-shim-ld -- \
+    cargo run -p td-shim-tools --features=td-shim/default,td-shim/tdx --bin td-shim-ld -- \
         target/x86_64-unknown-none/release/ResetVector.bin \
         target/x86_64-unknown-none/release/td-shim \
         -o target/release/final-boot-kernel.bin
@@ -116,7 +116,7 @@ final_pe_sb_test() {
     cargo run -p td-shim-tools --bin td-shim-strip-info -- -n td-shim --target x86_64-unknown-none
     cargo run -p td-shim-tools --bin td-shim-strip-info -- -n example --target x86_64-unknown-uefi
 
-    cargo run -p td-shim-tools --bin td-shim-sign-payload -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-uefi/release/example.efi 1 1
+    cargo run -p td-shim-tools --bin td-shim-sign-payload --no-default-features --features=signer -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-uefi/release/example.efi 1 1
 
     echo "Build final binary with unsigned td payload"
     cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \
@@ -160,7 +160,7 @@ final_elf_sb_test() {
     cargo run -p td-shim-tools --bin td-shim-strip-info -- -n td-shim --target x86_64-unknown-none
     cargo run -p td-shim-tools --bin td-shim-strip-info -- -n example --target x86_64-unknown-none
 
-    cargo run -p td-shim-tools --bin td-shim-sign-payload -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-none/release/example 1 1 
+    cargo run -p td-shim-tools --bin td-shim-sign-payload --no-default-features --features=signer -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-none/release/example 1 1 
 
     echo "Build final binary with unsigned td payload"
     cargo run -p td-shim-tools --features="linker" --no-default-features --bin td-shim-ld -- \

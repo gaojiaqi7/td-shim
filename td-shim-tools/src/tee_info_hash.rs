@@ -14,7 +14,7 @@ use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::mem::size_of;
-use td_layout::build_time::TD_SHIM_METADATA_SIZE;
+use td_layout::image::TD_SHIM_METADATA_SIZE;
 use td_shim::metadata::*;
 use zeroize::Zeroize;
 

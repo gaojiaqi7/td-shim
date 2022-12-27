@@ -11,7 +11,10 @@ use std::vec::Vec;
 
 use log::error;
 use ring::digest;
-use td_layout::build_time::{TD_SHIM_CONFIG_OFFSET, TD_SHIM_CONFIG_SIZE, TD_SHIM_FIRMWARE_SIZE};
+use td_layout::{
+    image::{TD_SHIM_CONFIG_OFFSET, TD_SHIM_CONFIG_SIZE},
+    TD_SHIM_FIRMWARE_SIZE,
+};
 use td_shim::fv::{FvFfsFileHeader, FvHeader};
 use td_shim::secure_boot::{
     CfvPubKeyFileHeader, CFV_FFS_HEADER_TRUST_ANCHOR_GUID, CFV_FILE_HEADER_PUBKEY_GUID,

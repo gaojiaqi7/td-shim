@@ -36,10 +36,10 @@ set AR=
 
 Then run the tool:
 ```
-cargo run -p td-shim-tools --bin td-shim-sign-payload -- [-A {signing_algorithm}] [-o output] {private_key_file} {payload_file} {payload_version} {payload_svn}
+cargo run -p td-shim-tools --bin td-shim-sign-payload --no-default-features --features=signer -- [-A {signing_algorithm}] [-o output] {private_key_file} {payload_file} {payload_version} {payload_svn}
 ```
 
 For example:
 ```
-cargo run -p td-shim-tools --bin td-shim-sign-payload -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-none/release/td-payload 1 1 
+cargo run -p td-shim-tools --bin td-shim-sign-payload --no-default-features --features=signer -- -A ECDSA_NIST_P384_SHA384 data/sample-keys/ecdsa-p384-private.pk8 target/x86_64-unknown-none/release/td-payload 1 1 
 ```

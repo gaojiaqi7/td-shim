@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 use linked_list_allocator::LockedHeap;
-use td_layout::build_time::{TD_SHIM_TEMP_HEAP_BASE, TD_SHIM_TEMP_HEAP_SIZE};
+use td_layout::image::{TD_SHIM_TEMP_HEAP_BASE, TD_SHIM_TEMP_HEAP_SIZE};
 
 #[cfg(not(test))]
 #[global_allocator]

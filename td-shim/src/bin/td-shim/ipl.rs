@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
-use td_layout::memslice;
 use td_loader::elf;
 use td_loader::elf64::ProgramHeader;
 use td_loader::pe::{self, Section};

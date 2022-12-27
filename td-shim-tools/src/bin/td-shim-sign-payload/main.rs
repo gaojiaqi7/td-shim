@@ -11,7 +11,7 @@ use std::{env, io, path::Path};
 use env_logger::Env;
 use log::{error, trace, LevelFilter};
 use ring::signature::{EcdsaKeyPair, RsaKeyPair, ECDSA_P384_SHA384_FIXED_SIGNING};
-use td_layout::build_time::TD_SHIM_PAYLOAD_SIZE;
+use td_layout::build_time::TD_SHIM_BUILTIN_PAYLOAD_SIZE;
 use td_shim_tools::signer::{PayloadSigner, SigningAlgorithm};
 use td_shim_tools::{InputData, OutputFile};
 
@@ -104,7 +104,11 @@ fn main() -> io::Result<()> {
         private_file
     );
 
-    let payload = InputData::new(payload_file, 0..=TD_SHIM_PAYLOAD_SIZE as usize, "payload")?;
+    let payload = InputData::new(
+        payload_file,
+        0..=TD_SHIM_BUILTIN_PAYLOAD_SIZE as usize,
+        "payload",
+    )?;
     let mut private = InputData::new(private_file, 0..=1024 * 1024, "private key")?;
     let algorithm = match algorithm {
         "RSAPSS_3072_SHA384" => {

@@ -9,7 +9,7 @@ use std::{
     path::{Path, PathBuf},
     process::{exit, Command},
 };
-use td_layout::{build_time, runtime};
+use td_layout::{image::*, TD_SHIM_SEC_CORE_INFO_BASE};
 
 fn nasm(file: &Path, arch: &str, out_file: &Path, args: &[&str]) -> Command {
     let oformat = match arch {
@@ -171,35 +171,25 @@ fn real_main() -> Result<()> {
             0u8
         }
     );
-    let td_shim_ipl_base_arg = format!("-DTOP_OF_BFV=0x{:X}", build_time::TD_SHIM_IPL_BASE);
-    let td_mailbox_base_arg = format!("-DTD_MAILBOX_BASE=0x{:X}", build_time::TD_SHIM_MAILBOX_BASE);
-    let td_mailbox_size_arg = format!("-DTD_MAILBOX_SIZE=0x{:X}", build_time::TD_SHIM_MAILBOX_SIZE);
-    let td_shim_hob_base_arg = format!("-DTD_HOB_BASE=0x{:X}", runtime::TD_HOB_BASE);
-    let td_shim_hob_size_arg = format!("-DTD_HOB_SIZE=0x{:X}", runtime::TD_HOB_SIZE);
-    let td_shim_tmp_stack_base_arg = format!(
-        "-DTEMP_STACK_BASE=0x{:X}",
-        build_time::TD_SHIM_TEMP_STACK_BASE
-    );
-    let td_shim_tmp_stack_size_arg = format!(
-        "-DTEMP_STACK_SIZE=0x{:X}",
-        build_time::TD_SHIM_TEMP_STACK_SIZE
-    );
-    let td_shim_tmp_heap_base_arg =
-        format!("-DTEMP_RAM_BASE=0x{:X}", build_time::TD_SHIM_TEMP_HEAP_BASE);
-    let td_shim_tmp_heap_size_arg =
-        format!("-DTEMP_RAM_SIZE=0x{:X}", build_time::TD_SHIM_TEMP_HEAP_SIZE);
+    let td_shim_ipl_base_arg = format!("-DTOP_OF_BFV=0x{:X}", TD_SHIM_BOOTLOADER_BASE);
+    let td_mailbox_base_arg = format!("-DTD_MAILBOX_BASE=0x{:X}", TD_SHIM_MAILBOX_BASE);
+    let td_mailbox_size_arg = format!("-DTD_MAILBOX_SIZE=0x{:X}", TD_SHIM_MAILBOX_SIZE);
+    let td_shim_tmp_stack_base_arg = format!("-DTEMP_STACK_BASE=0x{:X}", TD_SHIM_TEMP_STACK_BASE);
+    let td_shim_tmp_stack_size_arg = format!("-DTEMP_STACK_SIZE=0x{:X}", TD_SHIM_TEMP_STACK_SIZE);
+    let td_shim_tmp_heap_base_arg = format!("-DTEMP_RAM_BASE=0x{:X}", TD_SHIM_TEMP_HEAP_BASE);
+    let td_shim_tmp_heap_size_arg = format!("-DTEMP_RAM_SIZE=0x{:X}", TD_SHIM_TEMP_HEAP_SIZE);
 
     let loaded_sec_entrypoint_base = format!(
         "-DTD_SHIM_RESET_SEC_CORE_ENTRY_POINT_ADDR=0x{:X}",
-        build_time::TD_SHIM_SEC_CORE_INFO_BASE,
+        TD_SHIM_SEC_CORE_INFO_BASE,
     );
     let loaded_sec_core_base = format!(
         "-DTD_SHIM_RESET_SEC_CORE_BASE_ADDR=0x{:X}",
-        build_time::TD_SHIM_SEC_CORE_INFO_BASE + size_of::<u32>() as u32,
+        TD_SHIM_SEC_CORE_INFO_BASE + size_of::<u32>() as u32,
     );
     let loaded_sec_core_size = format!(
         "-DTD_SHIM_RESET_SEC_CORE_SIZE_ADDR=0x{:X}",
-        build_time::TD_SHIM_SEC_CORE_INFO_BASE + 2 * size_of::<u32>() as u32
+        TD_SHIM_SEC_CORE_INFO_BASE + 2 * size_of::<u32>() as u32
     );
 
     let _ = env::set_current_dir(reset_vector_src_dir.as_path());
@@ -212,8 +202,6 @@ fn real_main() -> Result<()> {
             &td_shim_ipl_base_arg,
             &td_mailbox_base_arg,
             &td_mailbox_size_arg,
-            &td_shim_hob_base_arg,
-            &td_shim_hob_size_arg,
             &td_shim_tmp_stack_base_arg,
             &td_shim_tmp_stack_size_arg,
             &td_shim_tmp_heap_base_arg,
