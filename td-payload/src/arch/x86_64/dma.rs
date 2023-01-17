@@ -3,16 +3,24 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 
 use crate::mm::SIZE_4K;
-use tdx_tdcall::tdx;
+use tdx_tdcall::{tdx, TdVmcallError};
 
 use super::paging::{clear_shared_bit, set_shared_bit};
 
 pub fn decrypt(addr: u64, length: usize) {
     set_shared_bit(addr, length);
 
-    // Safety: Fail to map GPA is a fatal error that we cannot handle
-    if tdx::tdvmcall_mapgpa(true, addr, length).is_err() {
-        panic!("Fail to map GPA to shared memory with TDVMCALL");
+    loop {
+        match tdx::tdvmcall_mapgpa(true, addr, length) {
+            Ok(_) => return,
+            Err(e) => {
+                if e == TdVmcallError::VmcallRetry {
+                    continue;
+                }
+                // Safety: Fail to map GPA is a fatal error that we cannot handle
+                panic!("Fail to map GPA to shared memory with TDVMCALL");
+            }
+        }
     }
 }
 
