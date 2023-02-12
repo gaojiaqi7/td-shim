@@ -399,7 +399,7 @@ pub fn cpu_get_memory_space_size() -> u8 {
     size_of_mem_space
 }
 
-#[cfg(test)]
+// #[cfg(test)]
 mod tests {
     use super::*;
     use td_layout::runtime;
