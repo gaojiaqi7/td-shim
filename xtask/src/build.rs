@@ -227,7 +227,7 @@ impl BuildArgs {
         if self.release {
             "release"
         } else {
-            "dev"
+            "dev-opt"
         }
     }
 
@@ -235,7 +235,7 @@ impl BuildArgs {
         if self.release {
             "release"
         } else {
-            "debug"
+            "dev-opt"
         }
     }
 
