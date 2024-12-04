@@ -2,7 +2,7 @@ name: Release TD-shim
 on: create
 
 env:
-  RUST_TOOLCHAIN: nightly-2023-12-31
+  RUST_TOOLCHAIN: nightly-2024-07-25
   TOOLCHAIN_PROFILE: minimal
 
 jobs:
