@@ -16,7 +16,12 @@ pub fn decrypt(addr: u64, length: usize) {
     }
 }
 
-pub fn encrypt(addr: u64, length: usize) {
+/// # Safety
+///
+/// This function is unsafe because `accept_memory` will zero out the memory range, potentially
+/// violating Rust's aliasing rules. The caller must ensure that the memory pointed to by the `addr`
+/// parameter is valid and not referenced by any other part of the program.
+pub unsafe fn encrypt(addr: u64, length: usize) {
     clear_shared_bit(addr, length);
 
     // Safety: Fail to map GPA is a fatal error that we cannot handle
@@ -26,7 +31,7 @@ pub fn encrypt(addr: u64, length: usize) {
     accept_memory(addr, length);
 }
 
-fn accept_memory(addr: u64, length: usize) {
+unsafe fn accept_memory(addr: u64, length: usize) {
     let page_num = length / SIZE_4K;
 
     for p in 0..page_num {

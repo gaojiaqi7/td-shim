@@ -73,51 +73,71 @@ pub const TDCALL_STATUS_PAGE_SIZE_MISMATCH: u64 = 0xC0000B0B00000001;
 const TDVMCALL_STATUS_SUCCESS: u64 = 0;
 const TDVMCALL_STATUS_RETRY: u64 = 1;
 
-// A public wrapper for use of asm_td_vmcall, this function takes a mutable reference of a
-// TdcallArgs structure to ensure the input is valid
-//
-// ## TDVMCALL ABI
-// Defined in GHCI Spec section 'TDCALL [TDG.VP.VMCALL] leaf'
-//
-// ### Input Operands:
-// * RAX - TDCALL instruction leaf number (0 - TDG.VP.VMCALL)
-// * RCX - A bitmap that controls which part of guest TD GPR is exposed to VMM.
-// * R10 - Set to 0 indicates leaf-function used in R11 is defined in standard GHCI Spec.
-// * R11 - TDG.VP.VMCALL sub-function is R10 is zero
-// * RBX, RBP, RDI, RSI, R8-R10, R12-R15 - Used to pass values to VMM in sub-functions.
-//
-// ### Output Operands:
-// * RAX - TDCALL instruction return code, always return Success(0).
-// * R10 - TDG.VP.VMCALL sub-function return value
-// * R11 - Correspond to each TDG.VP.VMCALL.
-// * R8-R9, R12-R15, RBX, RBP, RDI, RSI - Correspond to each TDG.VP.VMCALL sub-function.
-//
-pub fn td_vmcall(args: &mut TdVmcallArgs) -> u64 {
+/// A public wrapper for use of asm_td_vmcall, this function takes a mutable reference of a
+/// TdcallArgs structure to ensure the input is valid
+///
+/// ## TDVMCALL ABI
+/// Defined in GHCI Spec section 'TDCALL [TDG.VP.VMCALL] leaf'
+///
+/// ### Input Operands:
+/// * RAX - TDCALL instruction leaf number (0 - TDG.VP.VMCALL)
+/// * RCX - A bitmap that controls which part of guest TD GPR is exposed to VMM.
+/// * R10 - Set to 0 indicates leaf-function used in R11 is defined in standard GHCI Spec.
+/// * R11 - TDG.VP.VMCALL sub-function is R10 is zero
+/// * RBX, RBP, RDI, RSI, R8-R10, R12-R15 - Used to pass values to VMM in sub-functions.
+///
+/// ### Output Operands:
+/// * RAX - TDCALL instruction return code, always return Success(0).
+/// * R10 - TDG.VP.VMCALL sub-function return value
+/// * R11 - Correspond to each TDG.VP.VMCALL.
+/// * R8-R9, R12-R15, RBX, RBP, RDI, RSI - Correspond to each TDG.VP.VMCALL sub-function.
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it performs a low-level VMCALL which can
+/// violate Rust's memory safety rules. The caller must ensure that the memory pointed by
+/// the fields inside `args` is valid and that no other references to the same memory exist,
+/// as this can lead to undefined behavior due to aliasing violations.
+pub unsafe fn td_vmcall(args: &mut TdVmcallArgs) -> u64 {
     unsafe { asm::asm_td_vmcall(args as *mut TdVmcallArgs as *mut c_void, 0) }
 }
 
-// An extended public wrapper for use of asm_td_vmcall.
-//
-// `do_sti` is a flag used to determine whether to execute `sti` instruction before `tdcall`
-pub fn td_vmcall_ex(args: &mut TdVmcallArgs, do_sti: bool) -> u64 {
+/// An extended public wrapper for use of asm_td_vmcall.
+///
+/// `do_sti` is a flag used to determine whether to execute `sti` instruction before `tdcall`
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it performs a low-level VMCALL which can
+/// violate Rust's memory safety rules. The caller must ensure that the memory pointed by
+/// the fields inside `args` is valid and that no other references to the same memory exist,
+/// as this can lead to undefined behavior due to aliasing violations.
+pub unsafe fn td_vmcall_ex(args: &mut TdVmcallArgs, do_sti: bool) -> u64 {
     unsafe { asm::asm_td_vmcall(args as *mut TdVmcallArgs as *mut c_void, do_sti as u64) }
 }
 
-// Wrapper for use of asm_td_call, this function takes a mutable reference of a
-// TdVmcallArgs structure to ensure the input is valid
-//
-// ## TDCALL ABI
-// Defined in TDX Module 1.0 Spec section 'TDCALL Instruction (Common)'
-//
-// ### Input Operands:
-//  * RAX - Leaf and version numbers.
-//  * Other - Used by leaf functions as input values.
-//
-// ### Output Operands:
-//  * RAX - Instruction return code.
-//  * Other - Used by leaf functions as output values.
-//
-pub fn td_call(args: &mut TdcallArgs) -> u64 {
+/// Wrapper for use of asm_td_call, this function takes a mutable reference of a
+/// TdVmcallArgs structure to ensure the input is valid
+///
+/// ## TDCALL ABI
+/// Defined in TDX Module 1.0 Spec section 'TDCALL Instruction (Common)'
+///
+/// ### Input Operands:
+///  * RAX - Leaf and version numbers.
+///  * Other - Used by leaf functions as input values.
+///
+/// ### Output Operands:
+///  * RAX - Instruction return code.
+///  * Other - Used by leaf functions as output values.
+///
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it performs a low-level TDCALL which can
+/// violate Rust's memory safety rules. The caller must ensure that the memory pointed by
+/// the fields inside `args` is valid and that no other references to the same memory exist,
+/// as this can lead to undefined behavior due to aliasing violations.
+pub unsafe fn td_call(args: &mut TdcallArgs) -> u64 {
     unsafe { asm::asm_td_call(args as *mut TdcallArgs as *mut c_void) }
 }
 

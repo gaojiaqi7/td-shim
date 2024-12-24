@@ -90,7 +90,7 @@ pub fn tdvmcall_halt() {
         ..Default::default()
     };
 
-    let _ = td_vmcall(&mut args);
+    let _ = unsafe { td_vmcall(&mut args) };
 }
 
 /// Executing `hlt` instruction will cause a #VE to emulate the instruction. Safe halt operation
@@ -105,7 +105,7 @@ pub fn tdvmcall_sti_halt() {
 
     // Set the `do_sti` flag to execute `sti` before `tdcall` instruction
     // Result is always `TDG.VP.VMCALL_SUCCESS`
-    let _ = td_vmcall_ex(&mut args, true);
+    let _ = unsafe { td_vmcall_ex(&mut args, true) };
 }
 
 /// Request the VMM perform single byte IO read operation
@@ -120,7 +120,7 @@ pub fn tdvmcall_io_read_8(port: u16) -> u8 {
         ..Default::default()
     };
 
-    let ret = td_vmcall(&mut args);
+    let ret = unsafe { td_vmcall(&mut args) };
 
     if ret != TDVMCALL_STATUS_SUCCESS {
         tdvmcall_halt();
@@ -141,7 +141,7 @@ pub fn tdvmcall_io_read_16(port: u16) -> u16 {
         ..Default::default()
     };
 
-    let ret = td_vmcall(&mut args);
+    let ret = unsafe { td_vmcall(&mut args) };
 
     if ret != TDVMCALL_STATUS_SUCCESS {
         tdvmcall_halt();
@@ -162,7 +162,7 @@ pub fn tdvmcall_io_read_32(port: u16) -> u32 {
         ..Default::default()
     };
 
-    let ret = td_vmcall(&mut args);
+    let ret = unsafe { td_vmcall(&mut args) };
 
     if ret != TDVMCALL_STATUS_SUCCESS {
         tdvmcall_halt();
@@ -184,7 +184,7 @@ pub fn tdvmcall_io_write_8(port: u16, byte: u8) {
         ..Default::default()
     };
 
-    let ret = td_vmcall(&mut args);
+    let ret = unsafe { td_vmcall(&mut args) };
 
     if ret != TDVMCALL_STATUS_SUCCESS {
         tdvmcall_halt();
@@ -204,7 +204,7 @@ pub fn tdvmcall_io_write_16(port: u16, byte: u16) {
         ..Default::default()
     };
 
-    let ret = td_vmcall(&mut args);
+    let ret = unsafe { td_vmcall(&mut args) };
 
     if ret != TDVMCALL_STATUS_SUCCESS {
         tdvmcall_halt();
@@ -224,7 +224,7 @@ pub fn tdvmcall_io_write_32(port: u16, byte: u32) {
         ..Default::default()
     };
 
-    let ret = td_vmcall(&mut args);
+    let ret = unsafe { td_vmcall(&mut args) };
 
     if ret != TDVMCALL_STATUS_SUCCESS {
         tdvmcall_halt();
@@ -234,7 +234,16 @@ pub fn tdvmcall_io_write_32(port: u16, byte: u32) {
 /// Used to help request the VMM perform emulated-MMIO-write operation.
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<#VE.RequestMMIO>'
-pub fn tdvmcall_mmio_write<T: Sized>(address: *const T, value: T) {
+/// # Safety
+///
+/// This function is marked as `unsafe` because it does not enforce that the value written
+/// contains a valid bit-pattern for `T`. It may only be used for types for which all
+/// bit-patterns are safe. Additionally, the size of `T` must not exceed 8 bytes.
+///
+/// # Errors
+///
+/// Returns an error if the size of `T` exceeds 8 bytes or if the MMIO write operation fails.
+pub unsafe fn tdvmcall_mmio_write<T: Sized>(address: *const T, value: T) {
     let address = address as u64 | *SHARED_MASK;
     fence(Ordering::SeqCst);
     let val = unsafe { *(core::ptr::addr_of!(value) as *const u64) };
@@ -248,7 +257,7 @@ pub fn tdvmcall_mmio_write<T: Sized>(address: *const T, value: T) {
         ..Default::default()
     };
 
-    let ret = td_vmcall(&mut args);
+    let ret = unsafe { td_vmcall(&mut args) };
 
     if ret != TDVMCALL_STATUS_SUCCESS {
         tdvmcall_halt();
@@ -258,7 +267,17 @@ pub fn tdvmcall_mmio_write<T: Sized>(address: *const T, value: T) {
 /// Used to help request the VMM perform emulated-MMIO-read operation.
 ///
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<#VE.RequestMMIO>'
-pub fn tdvmcall_mmio_read<T: Clone + Copy + Sized>(address: usize) -> T {
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it does not enforce that the value read
+/// contains a valid bit-pattern for `T`. It may only be used for types for which all
+/// bit-patterns are safe. Additionally, the size of `T` must not exceed 8 bytes.
+///
+/// # Errors
+///
+/// Returns an error if the size of `T` exceeds 8 bytes or if the MMIO read operation fails.
+pub unsafe fn tdvmcall_mmio_read<T: Clone + Copy + Sized>(address: usize) -> T {
     let address = address as u64 | *SHARED_MASK;
     fence(Ordering::SeqCst);
 
@@ -270,7 +289,7 @@ pub fn tdvmcall_mmio_read<T: Clone + Copy + Sized>(address: usize) -> T {
         ..Default::default()
     };
 
-    let ret = td_vmcall(&mut args);
+    let ret = unsafe { td_vmcall(&mut args) };
 
     if ret != TDVMCALL_STATUS_SUCCESS {
         tdvmcall_halt();
@@ -310,7 +329,8 @@ pub fn tdvmcall_mapgpa(shared: bool, paddr: u64, length: usize) -> Result<(), Td
             ..Default::default()
         };
 
-        let ret = td_vmcall(&mut args);
+        let ret = unsafe { td_vmcall(&mut args) };
+
         if ret == TDVMCALL_STATUS_SUCCESS {
             return Ok(());
         } else if ret != TDVMCALL_STATUS_RETRY {
@@ -346,7 +366,7 @@ pub fn tdvmcall_rdmsr(index: u32) -> Result<u64, TdVmcallError> {
         ..Default::default()
     };
 
-    let ret = td_vmcall(&mut args);
+    let ret = unsafe { td_vmcall(&mut args) };
 
     if ret != TDVMCALL_STATUS_SUCCESS {
         return Err(ret.into());
@@ -366,7 +386,7 @@ pub fn tdvmcall_wrmsr(index: u32, value: u64) -> Result<(), TdVmcallError> {
         ..Default::default()
     };
 
-    let ret = td_vmcall(&mut args);
+    let ret = unsafe { td_vmcall(&mut args) };
 
     if ret != TDVMCALL_STATUS_SUCCESS {
         return Err(ret.into());
@@ -386,7 +406,7 @@ pub fn tdvmcall_cpuid(eax: u32, ecx: u32) -> CpuIdInfo {
         ..Default::default()
     };
 
-    let ret = td_vmcall(&mut args);
+    let ret = unsafe { td_vmcall(&mut args) };
 
     if ret != TDVMCALL_STATUS_SUCCESS {
         tdvmcall_halt();
@@ -411,7 +431,7 @@ pub fn tdvmcall_setup_event_notify(vector: u64) -> Result<(), TdVmcallError> {
         ..Default::default()
     };
 
-    let ret = td_vmcall(&mut args);
+    let ret = unsafe { td_vmcall(&mut args) };
 
     if ret != TDVMCALL_STATUS_SUCCESS {
         return Err(ret.into());
@@ -425,6 +445,11 @@ pub fn tdvmcall_setup_event_notify(vector: u64) -> Result<(), TdVmcallError> {
 /// Details can be found in TDX GHCI spec section 'TDG.VP.VMCALL<GetQuote>'
 ///
 /// * buffer: a piece of 4KB-aligned shared memory
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because sharing the `gpa` range with the host VMM
+/// can violate Rust's memory safety rules if the memory is behind a shared reference.
 pub fn tdvmcall_get_quote(buffer: &mut [u8]) -> Result<(), TdVmcallError> {
     let addr = buffer.as_mut_ptr() as u64 | *SHARED_MASK;
 
@@ -435,7 +460,7 @@ pub fn tdvmcall_get_quote(buffer: &mut [u8]) -> Result<(), TdVmcallError> {
         ..Default::default()
     };
 
-    let ret = td_vmcall(&mut args);
+    let ret = unsafe { td_vmcall(&mut args) };
 
     if ret != TDVMCALL_STATUS_SUCCESS {
         return Err(ret.into());
@@ -452,6 +477,15 @@ pub fn tdvmcall_get_quote(buffer: &mut [u8]) -> Result<(), TdVmcallError> {
 /// * response: a piece of 4KB-aligned shared memory as ouput
 /// * interrupt: event notification interrupt vector, valid values [32-255]
 /// * wait_time: Maximum wait time for the command and response
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it performs a low-level VMCALL which can
+/// violate Rust's memory safety rules. The caller must ensure that the `command` and `response`
+/// memory ranges are valid and properly aligned, and that no other references to the same memory
+/// exist. Sharing memory with the host VMM can lead to undefined behavior due to aliasing violations
+/// and concurrent access. Additionally, the caller must ensure that the `interrupt` vector is within
+/// a valid range.
 pub fn tdvmcall_service(
     command: &[u8],
     response: &mut [u8],
@@ -480,7 +514,7 @@ pub fn tdvmcall_service(
         ..Default::default()
     };
 
-    let ret = td_vmcall(&mut args);
+    let ret = unsafe { td_vmcall(&mut args) };
 
     if ret != TDVMCALL_STATUS_SUCCESS {
         return Err(ret.into());
@@ -498,7 +532,7 @@ pub fn tdcall_get_td_info() -> Result<TdInfo, TdCallError> {
         ..Default::default()
     };
 
-    let ret = td_call(&mut args);
+    let ret = unsafe { td_call(&mut args) };
 
     if ret != TDCALL_STATUS_SUCCESS {
         return Err(ret.into());
@@ -529,7 +563,7 @@ pub fn tdcall_extend_rtmr(digest: &TdxDigest, mr_index: u32) -> Result<(), TdCal
         ..Default::default()
     };
 
-    let ret = td_call(&mut args);
+    let ret = unsafe { td_call(&mut args) };
 
     if ret != TDCALL_STATUS_SUCCESS {
         return Err(ret.into());
@@ -547,7 +581,7 @@ pub fn tdcall_get_ve_info() -> Result<TdVeInfo, TdCallError> {
         ..Default::default()
     };
 
-    let ret = td_call(&mut args);
+    let ret = unsafe { td_call(&mut args) };
 
     if ret != TDCALL_STATUS_SUCCESS {
         return Err(ret.into());
@@ -570,7 +604,14 @@ pub fn tdcall_get_ve_info() -> Result<TdVeInfo, TdCallError> {
 /// private key
 ///
 /// Details can be found in TDX Module ABI spec section 'TDG.MEM.PAGE.Accept Leaf'
-pub fn tdcall_accept_page(address: u64) -> Result<(), TdCallError> {
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it performs a low-level TDCALL, which can
+/// violate Rust's memory safety rules. The caller must ensure that the `address` parameter
+/// points to a valid, properly aligned physical memory range that is not referenced by
+/// any other part of the program.
+pub unsafe fn tdcall_accept_page(address: u64) -> Result<(), TdCallError> {
     let mut args = TdcallArgs {
         rax: TDCALL_TDACCEPTPAGE,
         rcx: address,
@@ -601,7 +642,14 @@ pub fn tdcall_accept_page(address: u64) -> Result<(), TdCallError> {
 /// private key.
 ///
 /// This function is a wrapper to `tdcall_accept_page()`.
-pub fn td_accept_pages(address: u64, pages: u64, page_size: u64) {
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it performs a low-level TDCALL, which can
+/// violate Rust's memory safety rules. The caller must ensure that the `address` parameter
+/// points to a valid, properly aligned physical memory range that is not referenced by
+/// any other part of the program.
+pub unsafe fn td_accept_pages(address: u64, pages: u64, page_size: u64) {
     for i in 0..pages {
         let accept_addr = address + i * page_size;
         let accept_level = if page_size == PAGE_SIZE_2M { 1 } else { 0 };
@@ -629,7 +677,14 @@ pub fn td_accept_pages(address: u64, pages: u64, page_size: u64) {
 
 /// Accept a range of either 4K normal pages or 2M huge pages. This is basically a wrapper over
 /// td_accept_pages and initializes the pages to zero using the TD ephemeral private key.
-pub fn td_accept_memory(address: u64, len: u64) {
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it performs a low-level TDCALL, which can
+/// violate Rust's memory safety rules. The caller must ensure that the `address` parameter
+/// points to a valid, properly aligned physical memory range that is not referenced by
+/// any other part of the program.
+pub unsafe fn td_accept_memory(address: u64, len: u64) {
     let mut start = address;
     let end = address + len;
 
@@ -695,7 +750,7 @@ pub fn tdcall_servtd_rd(
         ..Default::default()
     };
 
-    let ret = td_call(&mut args);
+    let ret = unsafe { td_call(&mut args) };
 
     if ret != TDCALL_STATUS_SUCCESS {
         return Err(ret.into());
@@ -735,7 +790,7 @@ pub fn tdcall_servtd_wr(
         r13: target_td_uuid[3],
     };
 
-    let ret = td_call(&mut args);
+    let ret = unsafe { td_call(&mut args) };
 
     if ret != TDCALL_STATUS_SUCCESS {
         return Err(ret.into());
@@ -759,7 +814,7 @@ pub fn tdcall_sys_rd(field_identifier: u64) -> core::result::Result<(u64, u64), 
         ..Default::default()
     };
 
-    let ret = td_call(&mut args);
+    let ret = unsafe { td_call(&mut args) };
 
     if ret != TDCALL_STATUS_SUCCESS {
         return Err(ret.into());
@@ -778,7 +833,7 @@ pub fn tdcall_vp_read(field: u64) -> Result<(u64, u64), TdCallError> {
         ..Default::default()
     };
 
-    let ret = td_call(&mut args);
+    let ret = unsafe { td_call(&mut args) };
 
     if ret != TDCALL_STATUS_SUCCESS {
         return Err(ret.into());
@@ -790,7 +845,16 @@ pub fn tdcall_vp_read(field: u64) -> Result<(u64, u64), TdCallError> {
 /// Write a VCPU-scope metadata field (control structure field) of a TD.
 ///
 /// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VP.WR Leaf'.
-pub fn tdcall_vp_write(field: u64, value: u64, mask: u64) -> Result<u64, TdCallError> {
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it performs a low-level TDCALL, which can
+/// violate Rust's memory safety rules and aliasing rules. If the `value` parameter represents
+/// a memory address, the caller must ensure that it points to valid, properly aligned memory
+/// that is not referenced by any other part of the program. The caller must also ensure that
+/// the `field` and `mask` parameters are valid and that the operation does not cause any
+/// unintended side effects.
+pub unsafe fn tdcall_vp_write(field: u64, value: u64, mask: u64) -> Result<u64, TdCallError> {
     let mut args = TdcallArgs {
         rax: TDCALL_VP_WR,
         rdx: field,
@@ -799,7 +863,7 @@ pub fn tdcall_vp_write(field: u64, value: u64, mask: u64) -> Result<u64, TdCallE
         ..Default::default()
     };
 
-    let ret = td_call(&mut args);
+    let ret = unsafe { td_call(&mut args) };
 
     if ret != TDCALL_STATUS_SUCCESS {
         return Err(ret.into());
@@ -820,7 +884,7 @@ pub fn tdcall_vp_invvpid(flags: u64, gla: u64) -> Result<u64, TdCallError> {
         ..Default::default()
     };
 
-    let ret = td_call(&mut args);
+    let ret = unsafe { td_call(&mut args) };
 
     if ret != TDCALL_STATUS_SUCCESS {
         return Err(ret.into());
@@ -839,7 +903,7 @@ pub fn tdcall_vp_invept(vm_flags: u64) -> Result<(), TdCallError> {
         ..Default::default()
     };
 
-    let ret = td_call(&mut args);
+    let ret = unsafe { td_call(&mut args) };
 
     if ret != TDCALL_STATUS_SUCCESS {
         return Err(ret.into());
@@ -851,7 +915,13 @@ pub fn tdcall_vp_invept(vm_flags: u64) -> Result<(), TdCallError> {
 /// Enter L2 VCPU operation.
 ///
 /// Details can be found in TDX Module v1.5 ABI spec section 'TDG.VP.ENTER Leaf'.
-pub fn tdcall_vp_enter(vm_flags: u64, gpa: u64) -> TdcallArgs {
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it may break Rust's aliasing rule.
+/// The caller must ensure that the `gpa` points to valid, properly aligned memory
+/// that is not referenced by any other part of the program.
+pub unsafe fn tdcall_vp_enter(vm_flags: u64, gpa: u64) -> TdcallArgs {
     let mut args = TdcallArgs {
         rax: TDCALL_VP_ENTER,
         rcx: vm_flags,
@@ -859,7 +929,7 @@ pub fn tdcall_vp_enter(vm_flags: u64, gpa: u64) -> TdcallArgs {
         ..Default::default()
     };
 
-    td_call(&mut args);
+    unsafe { td_call(&mut args) };
 
     args
 }
@@ -874,7 +944,7 @@ pub fn tdcall_vm_read(field: u64, version: u8) -> Result<(u64, u64), TdCallError
         ..Default::default()
     };
 
-    let ret = td_call(&mut args);
+    let ret = unsafe { td_call(&mut args) };
 
     if ret != TDCALL_STATUS_SUCCESS {
         return Err(ret.into());
@@ -895,7 +965,7 @@ pub fn tdcall_vm_write(field: u64, value: u64, mask: u64) -> Result<u64, TdCallE
         ..Default::default()
     };
 
-    let ret = td_call(&mut args);
+    let ret = unsafe { td_call(&mut args) };
 
     if ret != TDCALL_STATUS_SUCCESS {
         return Err(ret.into());
@@ -907,7 +977,13 @@ pub fn tdcall_vm_write(field: u64, value: u64, mask: u64) -> Result<u64, TdCallE
 /// Write the attributes of a private page.  Create or remove L2 page aliases as required.
 ///
 /// Details can be found in TDX Module v1.5 ABI spec section 'TDG.MEM.PAGE.ATTR.WR Leaf'.
-pub fn tdcall_mem_page_attr_wr(
+///
+/// # Safety
+///
+/// This function is marked as `unsafe` because it may violate Rust's aliasing rules.
+/// The caller must ensure that the `gpa_mapping` and point to valid, properly aligned memory
+/// that is not referenced by any other part of the program.
+pub unsafe fn tdcall_mem_page_attr_wr(
     gpa_mapping: u64,
     gpa_attr: u64,
     attr_flags: u64,
@@ -925,7 +1001,7 @@ pub fn tdcall_mem_page_attr_wr(
     let mut ret = 0;
 
     while retry_counter < MAX_RETRIES_ATTR_WR {
-        ret = td_call(&mut args);
+        ret = unsafe { td_call(&mut args) };
 
         if ret == TDCALL_STATUS_SUCCESS {
             return Ok((args.rcx, args.rdx));

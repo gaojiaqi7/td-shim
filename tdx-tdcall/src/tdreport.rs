@@ -207,7 +207,7 @@ pub fn tdcall_report(
         ..Default::default()
     };
 
-    let ret = td_call(&mut args);
+    let ret = unsafe { td_call(&mut args) };
     if ret != TDVMCALL_STATUS_SUCCESS {
         return Err(args.r10.into());
     }

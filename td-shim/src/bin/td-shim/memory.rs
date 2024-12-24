@@ -258,23 +258,26 @@ impl<'a> Memory<'a> {
                 let mut start = region.physical_start;
                 let mut end = region.physical_start + region.resource_length;
 
-                if region.resource_length < SIZE_2M {
-                    td::accept_memory_resource_range(start, region.resource_length);
-                    continue;
-                }
+                // Safety: The physical memory range is currently uninitialized and safe to be accepted.
+                unsafe {
+                    if region.resource_length < SIZE_2M {
+                        td::accept_memory_resource_range(start, region.resource_length);
+                        continue;
+                    }
 
-                // Accept memory to align the 'start' up to 2M
-                if start & (SIZE_2M - 1) != 0 {
-                    td::accept_memory_resource_range(start, SIZE_2M - (start % SIZE_2M));
-                    start += SIZE_2M;
-                }
-                start /= SIZE_2M;
+                    // Accept memory to align the 'start' up to 2M
+                    if start & (SIZE_2M - 1) != 0 {
+                        td::accept_memory_resource_range(start, SIZE_2M - (start % SIZE_2M));
+                        start += SIZE_2M;
+                    }
+                    start /= SIZE_2M;
 
-                // Accept memory to align the 'end' down to 2M
-                if end & (SIZE_2M - 1) != 0 {
-                    td::accept_memory_resource_range(end - (end % SIZE_2M), end % SIZE_2M);
+                    // Accept memory to align the 'end' down to 2M
+                    if end & (SIZE_2M - 1) != 0 {
+                        td::accept_memory_resource_range(end - (end % SIZE_2M), end % SIZE_2M);
+                    }
+                    end /= SIZE_2M;
                 }
-                end /= SIZE_2M;
 
                 // Set the bit for the unaccepted memory range [start, end)
                 for index in start..end {
@@ -336,7 +339,10 @@ impl<'a> Memory<'a> {
                     resources[idx].resource_length
                 };
                 if to_be_accepted > 0 {
-                    td::accept_memory_resource_range(resources[idx].physical_start, size);
+                    // Safety: The physical memory range is currently uninitialized and safe to be accepted.
+                    unsafe {
+                        td::accept_memory_resource_range(resources[idx].physical_start, size);
+                    }
                     to_be_accepted -= size;
                 }
             }

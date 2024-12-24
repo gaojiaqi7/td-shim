@@ -167,7 +167,7 @@ pub fn ap_assign_work(cpu_index: u32, stack_top: u64, entry: u32) {
     wait_for_ap_response(&mut mail_box);
 }
 
-extern "win64" fn parallel_accept_memory(cpu_index: u64) {
+unsafe extern "win64" fn parallel_accept_memory(cpu_index: u64) {
     // Safety:
     // During this state, all the BSPs/APs are accessing the mailbox in shared immutable mode.
     let mail_box = unsafe { MailBox::new(get_mem_slice_mut(SliceType::MailBox)) };
@@ -188,7 +188,7 @@ extern "win64" fn parallel_accept_memory(cpu_index: u64) {
     }
 }
 
-pub fn accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
+pub unsafe fn accept_memory_resource_range(mut cpu_num: u32, address: u64, size: u64) {
     log::info!(
         "mp_accept_memory_resource_range: 0x{:x} - 0x{:x} ... (wait for seconds)\n",
         address,
